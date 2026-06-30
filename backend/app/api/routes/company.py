@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.db.session import get_db
 from app.models.company import Company
@@ -19,9 +20,16 @@ def create_company(company: CompanyCreate, db: Session = Depends(get_db)):
         career_url=company.career_url,
     )
 
-    db.add(db_company)
-    db.commit()
-    db.refresh(db_company)
+    try:
+        db.add(db_company)
+        db.commit()
+        db.refresh(db_company)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Company already exists",
+        )
 
     return db_company
 
